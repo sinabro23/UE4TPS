@@ -26,20 +26,23 @@ public:
 private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", Meta = (AllowPrivateAccess = "true"))
-	class AMainCharacter* MainCharacter;
+	class AMainCharacter* MainCharacter = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", Meta = (AllowPrivateAccess = "true"))
-	float Speed;
+	float Speed = 0.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", Meta = (AllowPrivateAccess = "true"))
-	bool bIsInAir;
+	bool bIsInAir = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", Meta = (AllowPrivateAccess = "true"))
-	bool bIsAccelerating;
+	bool bIsAccelerating = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", Meta = (AllowPrivateAccess = "true"))
-	float MovementOffsetYaw;
+	float MovementOffsetYaw = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", Meta = (AllowPrivateAccess = "true"))
-	float LastMovementOffsetYaw; // 멈출때의 오프셋을 위함
+	float LastMovementOffsetYaw = 0.f; // 멈출때의 오프셋을 위함
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", Meta = (AllowPrivateAccess = "true"))
+	bool bAiming = false;
 };

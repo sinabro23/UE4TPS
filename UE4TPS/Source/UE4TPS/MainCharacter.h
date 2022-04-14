@@ -40,6 +40,47 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	float BaseLookUpRate = 45.f;
 
+	// 조준할때 안할때의 키보드방향키 감도 바꾸게하기위해(마우스x)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	float HipTurnRate = 90.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	float HipLookUpRate = 90.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	float AimingTurnRate = 20.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	float AimingLookUpRate = 20.f;
+	////////////////////////////////////////////
+	// 
+	// 마우스 감도 관련
+	// meta = (ClampMin = "0.0", ClampMAX = "1.0", UIMin = "1.0", UIMax = "1.0")는 에디터에서 최대값 최소값 한계시켜줌, 디테일창 스크롤하는것의 한계값도 정하기위해 UIMin = "1.0", UIMax = "1.0"
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"), meta = (ClampMin = "0.0", ClampMAX = "1.0", UIMin = "1.0", UIMax = "1.0"))
+	float MouseHipTurnRate = 1.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"), meta = (ClampMin = "0.0", ClampMAX = "1.0", UIMin = "1.0", UIMax = "1.0"))
+	float MouseHipLookUpRate = 1.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"), meta = (ClampMin = "0.0", ClampMAX = "1.0", UIMin = "1.0", UIMax = "1.0"))
+	float MouseAimingTurnRate = 0.2f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"), meta = (ClampMin = "0.0", ClampMAX = "1.0", UIMin = "1.0", UIMax = "1.0"))
+	float MouseAimingLookUpRate = 0.2f;
+	///////////////////////////////////////////////
+
+	// 크로스헤어 관련 //////////////////
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crosshair", meta = (AllowPrivateAccess = "true"))
+	float CrosshairSpreadMultiplier = 0.f; // 화면 중간점에서 크로스헤어 벌어짐을위해 최종적으로 더해줄 값
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crosshair", meta = (AllowPrivateAccess = "true"))
+	float CrosshairVelocityFactor = 0.f; // 캐릭터가 이동 할 때에 크로스헤어에 영향을 줄 값
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crosshair", meta = (AllowPrivateAccess = "true"))
+	float CrosshairInAirFactor = 0.f; // 캐릭터가 점프 할 때에 크로스헤어에 영향을 줄 값
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crosshair", meta = (AllowPrivateAccess = "true"))
+	float CrosshairAimFactor = 0.f; // 캐릭터가 조준 할 때에 크로스헤어에 영향을 줄 값
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crosshair", meta = (AllowPrivateAccess = "true"))
+	float CrosshairShootingFactor = 0.f; // 캐릭터가 격발 할 때에 크로스헤어에 영향을 줄 값
+
+	// 격발시 크로스헤어 관련
+	float ShootTimeDuration = 0.05f; // 격발후 지날 시간 디폴트 0.05로 아주 짧게했음
+	bool bFiringBullet = false;
+	FTimerHandle CrosshairShootTimer;
+	//////////////////////////////////////
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	class USoundCue* FireSound;
 
@@ -55,14 +96,61 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	UParticleSystem* BeamParticle;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = "true"))
+	bool bAiming = false;
+
+	float CameraDefaultFOV = 0.f;
+	float CameraZoomedFOV = 35.f;
+	float CameraCurrentFOV = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	float ZoomInterpSpeed = 30.f;
+
+	// 자동사격 관련
+	bool bFireButtonPressed = false;
+	bool bShouldFire = true; // 총을 쏴야할지 안쏴야할지
+	float AutomaticFireRate = 0.1; // 연사속도
+	FTimerHandle AutoFireTimer; // 격발 사이의 타이머
+	//////////////////////////////
+
 public:
 	void MoveForward(float Value);
 	void MoveRight(float Value);
 	void Turn(float Value);
 	void LookUp(float Value);
 
-	void FireButton();
+	void FireWeapon();
 	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation);
 
+	void AimingButtonPressed();
+	void AimingButtonReleased();
+
+	void CameraInterpZoom(float DeltaTime);
+	void SetLookRates(); // 줌관련 카메라감도
+
+	// 크로스헤어 벌어지는것 관련 함수
+	void CalculateCrosshairSpread(float DeltaTime);
+
+
+	// 격발시 크로스헤어 관련
+	void StartCrosshairBulletFire();
+	UFUNCTION()
+	void FinishCrosshairBulletFire();
+	/////////////////////////
+
+	/// 자동사격 관련 함수
+	void FireButtonPressed();
+	void FireButtonReleased();
+	void StartFireTimer();
+	UFUNCTION()
+	void AutoFireReset();
+	//////////////////////////
+
+public:
+	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	FORCEINLINE bool GetAiming() const { return bAiming; }
+
+	UFUNCTION(BlueprintCallable)
+	float GetCrosshairSpreadMultiplier() const;
 
 };

@@ -41,6 +41,12 @@ AMainCharacter::AMainCharacter()
 void AMainCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (FollowCamera)
+	{
+		CameraDefaultFOV = GetFollowCamera()->FieldOfView;
+		CameraCurrentFOV = CameraDefaultFOV;
+	}
 	
 }
 
@@ -53,6 +59,10 @@ void AMainCharacter::Jump()
 void AMainCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	CameraInterpZoom(DeltaTime);
+	SetLookRates();
+	CalculateCrosshairSpread(DeltaTime);
 
 }
 
@@ -69,7 +79,11 @@ void AMainCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindAction("Jump", EInputEvent::IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", EInputEvent::IE_Released, this, &ACharacter::StopJumping);
 
-	PlayerInputComponent->BindAction("FireButton", EInputEvent::IE_Pressed, this, &AMainCharacter::FireButton);
+	PlayerInputComponent->BindAction("FireButton", EInputEvent::IE_Pressed, this, &AMainCharacter::FireButtonPressed);
+	PlayerInputComponent->BindAction("FireButton", EInputEvent::IE_Released, this, &AMainCharacter::FireButtonReleased);
+
+	PlayerInputComponent->BindAction("AimingButton", EInputEvent::IE_Pressed, this, &AMainCharacter::AimingButtonPressed);
+	PlayerInputComponent->BindAction("AimingButton", EInputEvent::IE_Released, this, &AMainCharacter::AimingButtonReleased);
 }
 
 void AMainCharacter::MoveForward(float Value)
@@ -100,15 +114,33 @@ void AMainCharacter::MoveRight(float Value)
 
 void AMainCharacter::Turn(float Value)
 {
-	AddControllerYawInput(Value * BaseTurnRate * GetWorld()->GetDeltaSeconds());
+	float TurnScaleFactor = 0.0f;
+	if (bAiming)
+	{
+		TurnScaleFactor = MouseAimingTurnRate;
+	}
+	else
+	{
+		TurnScaleFactor = MouseHipTurnRate;
+	}
+	AddControllerYawInput(Value * TurnScaleFactor);
 }
 
 void AMainCharacter::LookUp(float Value)
 {
-	AddControllerPitchInput(Value * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+	float LookUpScaleFactor = 0.0f;
+	if (bAiming)
+	{
+		LookUpScaleFactor = MouseAimingLookUpRate;
+	}
+	else
+	{
+		LookUpScaleFactor = MouseHipLookUpRate;
+	}
+	AddControllerPitchInput(Value * LookUpScaleFactor);
 }
 
-void AMainCharacter::FireButton()
+void AMainCharacter::FireWeapon()
 {
 	if (FireSound)
 	{
@@ -152,6 +184,8 @@ void AMainCharacter::FireButton()
 			AnimInstance->Montage_JumpToSection(FName("StartFire"));
 		}
 	}
+
+	StartCrosshairBulletFire();
 }
 
 bool AMainCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation)
@@ -163,7 +197,7 @@ bool AMainCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVe
 	}
 
 	FVector2D CrosshairLocation = FVector2D(ViewportSize.X / 2.f, ViewportSize.Y / 2.f);
-	CrosshairLocation.Y -= 50.f;
+	//CrosshairLocation.Y -= 50.f;
 	FVector CrosshairWorldPosition;
 	FVector CrosshairWorldDirection;
 
@@ -202,5 +236,138 @@ bool AMainCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVe
 	}
 
 	return false;
+}
+
+void AMainCharacter::AimingButtonPressed()
+{
+	bAiming = true;
+}
+
+void AMainCharacter::AimingButtonReleased()
+{
+	bAiming = false;
+}
+
+void AMainCharacter::CameraInterpZoom(float DeltaTime)
+{
+	if (bAiming)
+	{
+		CameraCurrentFOV = FMath::FInterpTo(CameraCurrentFOV, CameraZoomedFOV, DeltaTime, ZoomInterpSpeed);
+	}
+	else
+	{
+		CameraCurrentFOV = FMath::FInterpTo(CameraCurrentFOV, CameraDefaultFOV, DeltaTime, ZoomInterpSpeed);
+	}
+	GetFollowCamera()->SetFieldOfView(CameraCurrentFOV);
+}
+
+void AMainCharacter::SetLookRates()
+{
+	if (bAiming)
+	{
+		BaseTurnRate = AimingTurnRate;
+		BaseLookUpRate = AimingLookUpRate;
+	}
+	else
+	{
+		BaseTurnRate = HipTurnRate;
+		BaseLookUpRate = HipLookUpRate;
+	}
+}
+
+void AMainCharacter::CalculateCrosshairSpread(float DeltaTime)
+{
+	FVector2D WalkSpeedRange = FVector2D(0.f, 600.f);
+	FVector2D VelocityMultiplierRange = FVector2D(0.f, 1.f);
+	FVector Velocity = GetVelocity();
+	Velocity.Z = 0.0f;
+
+
+	// CrosshairVelocityFactor 값 구하기
+	// 어떤 값을 범위내의 값으로 변경해주는 것. 여기서는 속도를 퍼센트처럼 0~1로 변경해줌 (잘 이해 안됐음)
+	CrosshairVelocityFactor = FMath::GetMappedRangeValueClamped(WalkSpeedRange, VelocityMultiplierRange, Velocity.Size());
+
+	// CrosshairInAirFactor 구하기
+	if (GetCharacterMovement()->IsFalling())
+	{
+		//																				벌어질때는 속도 느리게
+		CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 2.25f, DeltaTime, 2.25f);
+	}
+	else
+	{
+		//																			  좁아질때는 속도 빠르게
+		CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 0.f, DeltaTime, 30.f);
+	}
+
+	if (bAiming)
+	{
+		CrosshairAimFactor = FMath::FInterpTo(CrosshairAimFactor, 0.6f, DeltaTime, 30.f);
+	}
+	else
+	{
+		CrosshairAimFactor = FMath::FInterpTo(CrosshairAimFactor, 0.f, DeltaTime, 30.f);
+	}
+
+	if (bFiringBullet) // 격발 버튼누르면 StartCrosshairBulletFire()함수에 의해 5초동안 True가됨
+	{
+		CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.3f, DeltaTime, 60.f);
+	}
+	else
+	{
+		CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.0f, DeltaTime, 60.f);
+	}
+
+	CrosshairSpreadMultiplier =
+		0.5f +
+		CrosshairVelocityFactor +
+		CrosshairInAirFactor -
+		CrosshairAimFactor +
+		CrosshairShootingFactor;
+}
+
+void AMainCharacter::StartCrosshairBulletFire()
+{
+	bFiringBullet = true;
+	GetWorldTimerManager().SetTimer(CrosshairShootTimer, this, &AMainCharacter::FinishCrosshairBulletFire, ShootTimeDuration);
+}
+
+void AMainCharacter::FinishCrosshairBulletFire()
+{
+	bFiringBullet = false;
+}
+
+void AMainCharacter::FireButtonPressed()
+{
+	bFireButtonPressed = true;
+	StartFireTimer();
+}
+
+void AMainCharacter::FireButtonReleased()
+{
+	bFireButtonPressed = false;
+}
+
+void AMainCharacter::StartFireTimer()
+{
+	if (bShouldFire)
+	{
+		FireWeapon();
+		bShouldFire = false;
+		GetWorldTimerManager().SetTimer(AutoFireTimer, this, &AMainCharacter::AutoFireReset, AutomaticFireRate);
+	}
+}
+
+void AMainCharacter::AutoFireReset()
+{
+	bShouldFire = true;	
+	if (bFireButtonPressed)
+	{
+		StartFireTimer();
+	}
+}
+
+float AMainCharacter::GetCrosshairSpreadMultiplier() const
+{
+	return CrosshairSpreadMultiplier;
 }
 
