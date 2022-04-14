@@ -62,6 +62,7 @@ public:
 	void LookUp(float Value);
 
 	void FireButton();
+	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation);
 
 
 };

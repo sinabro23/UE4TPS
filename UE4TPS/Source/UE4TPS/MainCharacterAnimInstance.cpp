@@ -4,6 +4,7 @@
 #include "MainCharacterAnimInstance.h"
 #include "MainCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 
 void UMainCharacterAnimInstance::UpdateAnimationProperties(float DeltaTime)
 {
@@ -27,6 +28,25 @@ void UMainCharacterAnimInstance::UpdateAnimationProperties(float DeltaTime)
 			bIsAccelerating = true;
 		else
 			bIsAccelerating = false;
+
+		FRotator AimRotation = MainCharacter->GetBaseAimRotation();
+		FRotator MovementRotation = UKismetMathLibrary::MakeRotFromX(MainCharacter->GetVelocity());
+		MovementOffsetYaw = UKismetMathLibrary::NormalizedDeltaRotator(MovementRotation, AimRotation).Yaw;
+
+		if (MainCharacter->GetVelocity().Size() > 0.f) // 이동할때만 저장
+		{
+			LastMovementOffsetYaw = MovementOffsetYaw;
+		}
+	
+
+		//FString RotationMessage = FString::Printf(TEXT("Base Aim Rotation : %f"), AimRotation.Yaw);
+		//FString MovementRotationMessage = FString::Printf(TEXT("MovementRotation Rotation : %f"), MovementRotation.Yaw);
+		FString MovementOffsetYawRotationMessage = FString::Printf(TEXT("MovementOffset Rotation : %f"), MovementOffsetYaw);
+
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(1, 0.f, FColor::White, MovementOffsetYawRotationMessage);
+		}
 	}
 }
 
