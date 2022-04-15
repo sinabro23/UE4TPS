@@ -112,6 +112,27 @@ private:
 	FTimerHandle AutoFireTimer; // 격발 사이의 타이머
 	//////////////////////////////
 
+	/** True if we should trace every frame for items */
+	bool bShouldTraceForItems = false;
+	/** Number of overlapped AItems */
+	int8 OverlappedItemCount = 0;
+
+	/** The AItem we hit last frame */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Items, meta = (AllowPrivateAccess = "true"))
+	class AItem* TraceHitItemLastFrame;
+
+	/** Currently equipped Weapon */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	class AWeapon* EquippedWeapon;
+
+	/** Set this in Blueprints for the default Weapon class */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<AWeapon> DefaultWeaponClass;
+
+	/** The item currently hit by our trace in TraceForItems (could be null) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	AItem* TraceHitItem;
+
 public:
 	void MoveForward(float Value);
 	void MoveRight(float Value);
@@ -145,6 +166,24 @@ public:
 	void AutoFireReset();
 	//////////////////////////
 
+	/** Line trace for items under the crosshairs */
+	bool TraceUnderCrosshairs(FHitResult& OutHitResult, FVector& OutHitLocation);
+
+	void TraceForItems();
+
+	AWeapon* SpawnDefaultWeapon();
+
+	/** Takes a weapon and attaches it to the mesh */
+	void EquipWeapon(AWeapon* WeaponToEquip);
+
+	/** Detach weapon and let it fall to the ground */
+	void DropWeapon();
+
+	void SelectButtonPressed();
+	void SelectButtonReleased();
+
+	void SwapWeapon(AWeapon* WeaponToSwap);
+
 public:
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
@@ -153,4 +192,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetCrosshairSpreadMultiplier() const;
 
+	FORCEINLINE int8 GetOverlappedItemCount() const { return OverlappedItemCount; }
+
+	/** Adds/subtracts to/from OverlappedItemCount and updates bShouldTraceForItems */
+	void IncrementOverlappedItemCount(int8 Amount);
 };
