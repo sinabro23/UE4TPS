@@ -74,4 +74,6 @@ public:
 	FORCEINLINE FName GetReloadMontageSection() const { return ReloadMontageSection; }
 
 	void ReloadAmmo(int32 Amount);
+
+	bool ClipIsFull();
 };

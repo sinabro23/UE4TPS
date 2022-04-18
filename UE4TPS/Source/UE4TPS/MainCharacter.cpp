@@ -614,14 +614,15 @@ void AMainCharacter::ReloadWeapon()
 	if (EquippedWeapon == nullptr) return;
 
 	// Do we have ammo of the correct type?
-	if (CarryingAmmo())
+	if (CarryingAmmo() && !EquippedWeapon->ClipIsFull())
 	{
 		CombatState = ECombatState::ECS_Reloading;
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 		if (AnimInstance && ReloadMontage)
 		{
 			AnimInstance->Montage_Play(ReloadMontage);
-			AnimInstance->Montage_JumpToSection(EquippedWeapon->GetReloadMontageSection());
+			AnimInstance->Montage_JumpToSection(
+				EquippedWeapon->GetReloadMontageSection());
 		}
 	}
 }
